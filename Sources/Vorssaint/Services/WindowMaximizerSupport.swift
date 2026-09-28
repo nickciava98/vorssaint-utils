@@ -13,19 +13,20 @@ enum WindowMaximizerSupport {
     }
 
     /// Some apps keep a window edge out from under a Dock at the side of the
-    /// screen: a size that grows is held just short of the Dock, but one that
-    /// shrinks from beyond the screen edge onto the Dock's own boundary is
-    /// pushed back out to the edge. A window dragged in from a wider display
-    /// hits the second case, so the result is larger than the target, not
-    /// smaller as with an app that commits late or refuses the frame.
-    static func overshoots(_ actual: CGSize, target: CGSize, tolerance: CGFloat) -> Bool {
-        actual.width > target.width + tolerance || actual.height > target.height + tolerance
+    /// screen and refuse a size that would put it there: a window dragged in
+    /// from another display stays wider than the target, by a few points or by
+    /// the whole Dock. Within the frame tolerance that still reads as done while
+    /// the window sits under the Dock, so any excess counts, not only one past
+    /// the tolerance; half a point absorbs rounding.
+    static func overshoots(_ actual: CGSize, target: CGSize) -> Bool {
+        actual.width > target.width + 0.5 || actual.height > target.height + 0.5
     }
 
-    /// Shrinking below the target and then growing into it goes through the
-    /// path those apps only clamp. Stopping short by exactly the tolerance means
-    /// an app that also refuses the regrow still ends within it.
-    static func approachSize(for target: CGSize, tolerance: CGFloat) -> CGSize {
-        CGSize(width: max(1, target.width - tolerance), height: max(1, target.height - tolerance))
+    /// Taking the target size a tolerance up and to the left keeps the far
+    /// edges clear of the Dock, so those apps accept it in full; the move back
+    /// onto the target is not limited the same way and lands where native zoom
+    /// does. Growing into the target instead stops a point short.
+    static func approachOrigin(for target: CGPoint, tolerance: CGFloat) -> CGPoint {
+        CGPoint(x: target.x - tolerance, y: target.y - tolerance)
     }
 }

@@ -1889,23 +1889,19 @@ enum SwitcherModelFeatureTests {
                                                     excludedBundleIdentifiers: ["com.example.game"]),
                "only apps on the exception list keep the native green button")
         let dockRightTarget = CGSize(width: 1871, height: 1049)
-        suite.expect(WindowMaximizerSupport.overshoots(CGSize(width: 1920, height: 1049),
-                                                       target: dockRightTarget, tolerance: 4)
-                && WindowMaximizerSupport.overshoots(CGSize(width: 1871, height: 1080),
-                                                     target: dockRightTarget, tolerance: 4),
-               "a window pushed back out past the Dock is recognized as larger than the target")
-        suite.expect(!WindowMaximizerSupport.overshoots(CGSize(width: 1870, height: 1049),
-                                                        target: dockRightTarget, tolerance: 4)
-                && !WindowMaximizerSupport.overshoots(CGSize(width: 1875, height: 1053),
-                                                      target: dockRightTarget, tolerance: 4)
-                && !WindowMaximizerSupport.overshoots(CGSize(width: 936, height: 1049),
-                                                      target: dockRightTarget, tolerance: 4),
-               "a frame within tolerance or one the app kept smaller is not treated as pushed out")
-        let approach = WindowMaximizerSupport.approachSize(for: dockRightTarget, tolerance: 4)
-        suite.expect(approach.width < 1870 && approach.height < dockRightTarget.height
-                && abs(approach.width - dockRightTarget.width) <= 4
-                && abs(approach.height - dockRightTarget.height) <= 4,
-               "the approach size clears the Dock edge yet stays within tolerance if the regrow is refused")
+        suite.expect(WindowMaximizerSupport.overshoots(CGSize(width: 1920, height: 1049), target: dockRightTarget)
+                && WindowMaximizerSupport.overshoots(CGSize(width: 1873, height: 1049), target: dockRightTarget)
+                && WindowMaximizerSupport.overshoots(CGSize(width: 1871, height: 1080), target: dockRightTarget),
+               "a window left partly under the Dock is larger than the target, even within the frame tolerance")
+        suite.expect(!WindowMaximizerSupport.overshoots(CGSize(width: 1871, height: 1049), target: dockRightTarget)
+                && !WindowMaximizerSupport.overshoots(CGSize(width: 1870, height: 1049), target: dockRightTarget)
+                && !WindowMaximizerSupport.overshoots(CGSize(width: 936, height: 1049), target: dockRightTarget),
+               "an exact frame, or one the app kept smaller, is not treated as left under the Dock")
+        let approach = WindowMaximizerSupport.approachOrigin(for: CGPoint(x: 0, y: 31), tolerance: 4)
+        suite.expect(approach.x + dockRightTarget.width < 1870
+                && approach.y + dockRightTarget.height < 1080
+                && abs(approach.x) <= 4 && abs(approach.y - 31) <= 4,
+               "the approach keeps the full target size clear of the Dock edge, a tolerance from the target")
         suite.expect(registeredDefaults[DefaultsKey.keyboardDebounceEnabled] as? Bool == false,
                "keyboard debounce is opt-in")
         suite.expect(registeredDefaults[DefaultsKey.keyboardDebounceWindowMs] as? Int == 5,

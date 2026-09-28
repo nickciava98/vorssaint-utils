@@ -348,10 +348,10 @@ final class WindowMaximizer: ObservableObject {
             return
         }
         if let actual = frame(of: window),
-           WindowMaximizerSupport.overshoots(actual.size, target: target.size, tolerance: frameTolerance) {
-            _ = applyFrame(AXFrame(origin: target.origin,
-                                   size: WindowMaximizerSupport.approachSize(for: target.size,
-                                                                             tolerance: frameTolerance)),
+           WindowMaximizerSupport.overshoots(actual.size, target: target.size) {
+            _ = applyFrame(AXFrame(origin: WindowMaximizerSupport.approachOrigin(for: target.origin,
+                                                                                 tolerance: frameTolerance),
+                                   size: target.size),
                            on: window)
             _ = applyFrame(target, on: window)
         }
