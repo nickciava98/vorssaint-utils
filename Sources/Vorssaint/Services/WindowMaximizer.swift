@@ -347,6 +347,14 @@ final class WindowMaximizer: ObservableObject {
             completion(false)
             return
         }
+        if let actual = frame(of: window),
+           WindowMaximizerSupport.overshoots(actual.size, target: target.size, tolerance: frameTolerance) {
+            _ = applyFrame(AXFrame(origin: target.origin,
+                                   size: WindowMaximizerSupport.approachSize(for: target.size,
+                                                                             tolerance: frameTolerance)),
+                           on: window)
+            _ = applyFrame(target, on: window)
+        }
         if let actual = frame(of: window), actual.isClose(to: target, tolerance: frameTolerance) {
             completion(true)
             return

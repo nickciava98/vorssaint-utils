@@ -23,6 +23,7 @@ Scratchpad gains easier formatting and search, and mouse wheels can scroll a fix
 - Window Layout edge snapping remains available when displays share Spaces and macOS tiling controls are unavailable.
 - Scratchpad warns in both views when notes cannot be saved and shows a warning if the final save fails while closing.
 - Extra Brightness no longer hides purchase confirmations in the system app store or administrator password prompts.
+- Maximize windows no longer snaps a window moved in from another display back to its old size when the Dock is on the right, as happened with Google Chrome.
 - Homebrew commands and app update checks use proxy and mirror settings exported by the user's shell, allowing package operations on networks where direct access is blocked.
 
 ### Contributors
