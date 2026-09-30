@@ -373,11 +373,11 @@ extension AppFeature {
              .soundOutputSwitcher, .audioPriority,
              .extraBrightness, .bluetoothSleep, .quickLauncher, .colorPicker, .micMute, .mediaTools,
              .scratchpad, .wallpaper, .monitorGPU, .monitorNetwork, .connectedDevices, .fanControl, .killProcess,
-             .portManager,
-             // The divider is one of our own status items: hiding the rest
-             // moves nothing and reads nothing from other apps.
-             .menuBarManager:
+             .portManager:
             return []
+        // Hiding needs nothing; on macOS 27 Accessibility finds the system «
+        // so a click on it reveals the icons in place.
+        case .menuBarManager: return [.accessibility]
         }
     }
 
@@ -388,7 +388,7 @@ extension AppFeature {
         switch self {
         case .keepAwake, .brightness, .radialMenu, .quickToggles, .cleaner,
              .uninstaller, .homebrew, .appUpdates, .mixer, .cameraPreview,
-             .micMute, .musicBlock:
+             .micMute, .musicBlock, .menuBarManager:
             return []
         default:
             return permissions.filter { $0 == .accessibility || $0 == .screenRecording }
@@ -523,6 +523,9 @@ extension AppFeature {
                         stringFor(DefaultsKey.radialMenuMouseButton)) != .off
             case (.keepAwake, .accessibility):
                 return boolFor(DefaultsKey.keepAwakeMouseJiggleEnabled)
+            case (.menuBarManager, .accessibility):
+                return MenuBarManagerSupport.usesOverflowMenu(
+                    osMajor: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
             case (.mixer, .accessibility):
                 return boolFor(DefaultsKey.preciseVolumeRollerEnabled)
             case (.brightness, .accessibility):
