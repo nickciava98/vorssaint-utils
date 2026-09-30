@@ -43,6 +43,7 @@ struct MetricsTests {
                 MixerFeatureTests.run(suite)
             }),
             ("audio-priority", { AudioPriorityTests.run(suite) }),
+            ("menu-bar-manager", { MenuBarManagerTests.run(suite) }),
             ("shelf", { ShelfFeatureTests.run(suite) }),
             ("overlays", { OverlayPanelTests.run(suite) }),
             ("updates", {
