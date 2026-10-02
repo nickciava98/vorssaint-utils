@@ -241,6 +241,7 @@ final class MenuBarManagerService: ObservableObject {
         if MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor),
            let cameraMaxX = screen?.auxiliaryTopRightArea?.minX, shownMaxX < cameraMaxX {
             Self.log.info("hide skipped: the system overflow holds the divider at \(shownMaxX, privacy: .public)")
+            closeSystemOverflowAndRetry()
             return
         }
         let length = MenuBarManagerSupport.hiddenLength(
@@ -254,7 +255,7 @@ final class MenuBarManagerService: ObservableObject {
         if MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor) {
             // The « appears once macOS has laid the hidden items out.
             schedule(after: 0.5) { [weak self] in
-                guard let self, !self.undoHideIntoSystemOverflow(length: length) else { return }
+                guard let self, !self.undoHideIntoSystemOverflow() else { return }
                 self.correctClampedDivider(length: length)
                 self.installOverflowClickMonitor()
             }
@@ -280,8 +281,12 @@ final class MenuBarManagerService: ObservableObject {
             mainMaxY: NSScreen.screens.first?.frame.maxY ?? 0)
         if let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first {
             overflowClickTapActive = overflowClickTap.activate(strips: strips, agentPID: agent.processIdentifier)
-            if overflowClickTapActive { return }
+            if overflowClickTapActive {
+                Self.log.info("watching the « with a tap")
+                return
+            }
         }
+        Self.log.info("watching the « with a monitor (trusted: \(AXIsProcessTrusted(), privacy: .public))")
         guard let chevronCenterFromRight = locateOverflowChevron() else { return }
         self.chevronCenterFromRight = chevronCenterFromRight
         // A global event has no window, so its location is already in screen
@@ -367,13 +372,12 @@ final class MenuBarManagerService: ObservableObject {
     /// While the system « has its own overflow open, macOS 27 lays the hidden
     /// items out left of the camera, after the app's menus, and the divider
     /// follows them there instead of hiding anything. Its left edge then
-    /// lands far left of where its length should have put it, so the hide
-    /// is undone. With Accessibility the system overflow is closed with a
+    /// lands left of the camera, so the hide is undone. With Accessibility the system overflow is closed with a
     /// click on its » and the hide tried once more.
-    private func undoHideIntoSystemOverflow(length: CGFloat) -> Bool {
-        guard isHidden, let divider, let window = divider.button?.window, let shownMaxX,
-              MenuBarManagerSupport.wasCarriedPastTarget(frameMinX: window.frame.minX, shownMaxX: shownMaxX,
-                                                         length: length, chrome: MenuBarManagerSupport.windowChrome)
+    private func undoHideIntoSystemOverflow() -> Bool {
+        guard isHidden, let divider, let window = divider.button?.window,
+              MenuBarManagerSupport.wasCarriedPastCamera(frameMinX: window.frame.minX,
+                                                         cameraMinX: window.screen?.auxiliaryTopLeftArea?.maxX)
         else {
             closedSystemOverflow = false
             return false
@@ -381,16 +385,24 @@ final class MenuBarManagerService: ObservableObject {
         Self.log.info("hide undone: the divider was carried to \(window.frame.minX, privacy: .public) by the system overflow")
         show()
         cancelRehide()
-        guard !closedSystemOverflow, let button = overflowButtonFrame() else { return true }
+        closeSystemOverflowAndRetry()
+        return true
+    }
+
+    /// With Accessibility, closes the system overflow with a click on its »
+    /// and hides once more; a second failure leaves the items shown.
+    private func closeSystemOverflowAndRetry() {
+        guard !closedSystemOverflow, let button = overflowButtonFrame() else { return }
         closedSystemOverflow = true
         let point = CGPoint(x: button.midX, y: button.midY)
+        let pointer = CGEvent(source: nil)?.location ?? point
         let source = CGEventSource(stateID: .hidSystemState)
-        for type in [CGEventType.leftMouseDown, .leftMouseUp] {
-            CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
+        // A posted click moves the pointer, so it is put back where it was.
+        for (type, location) in [(CGEventType.leftMouseDown, point), (.leftMouseUp, point), (.mouseMoved, pointer)] {
+            CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: location, mouseButton: .left)?
                 .post(tap: .cghidEventTap)
         }
         schedule(after: 0.6) { [weak self] in self?.hide() }
-        return true
     }
 
     /// macOS 27 drops a divider that reaches past its floor, which would put
