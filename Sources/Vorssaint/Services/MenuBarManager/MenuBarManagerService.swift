@@ -25,6 +25,9 @@ final class MenuBarManagerService: ObservableObject {
     /// True while hiding is refused because the app's own icon sits left of
     /// the divider and would disappear with the other items.
     @Published private(set) var ownIconBlocksHiding = false
+    /// True while hiding is refused because our arrow sits left of the
+    /// divider, where nothing would be left to bring the items back.
+    @Published private(set) var arrowBlocksHiding = false
 
     /// The main icon's window frame, provided by the app delegate so hiding
     /// can refuse to take the way back into the app with it.
@@ -77,12 +80,14 @@ final class MenuBarManagerService: ObservableObject {
     private func start() {
         guard divider == nil else { return }
         seedPlacementOnce()
-        divider = makeItem(autosaveName: MenuBarManagerSupport.dividerAutosaveName,
-                           action: #selector(toggleClicked))
+        // A new item takes the spot left of the others, so the arrow comes
+        // first and an unseeded divider still lands on its left.
         if !MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor) {
             toggle = makeItem(autosaveName: MenuBarManagerSupport.toggleAutosaveName,
                               action: #selector(toggleClicked))
         }
+        divider = makeItem(autosaveName: MenuBarManagerSupport.dividerAutosaveName,
+                           action: #selector(toggleClicked))
         applyShownAppearance()
         observe()
         // The items need a layout pass before their frames can be read.
@@ -108,6 +113,7 @@ final class MenuBarManagerService: ObservableObject {
         observedFloor = nil
         isHidden = false
         ownIconBlocksHiding = false
+        arrowBlocksHiding = false
     }
 
     private func makeItem(autosaveName: String, action: Selector) -> NSStatusItem {
@@ -143,7 +149,8 @@ final class MenuBarManagerService: ObservableObject {
     private func seedPlacementOnce() {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: DefaultsKey.menuBarManagerPlacementSeeded) else { return }
-        defaults.set(true, forKey: DefaultsKey.menuBarManagerPlacementSeeded)
+        // Without the main icon in the bar there is nothing to seed from, so
+        // the next start tries again.
         guard let anchor = mainItemFrame(),
               let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }),
               let togglePosition = MenuBarManagerSupport.seedPosition(
@@ -156,6 +163,7 @@ final class MenuBarManagerService: ObservableObject {
         }
         defaults.set(togglePosition + (usesToggle ? 30 : 0),
                      forKey: "NSStatusItem Preferred Position \(MenuBarManagerSupport.dividerAutosaveName)")
+        defaults.set(true, forKey: DefaultsKey.menuBarManagerPlacementSeeded)
     }
 
     private func observe() {
@@ -209,17 +217,20 @@ final class MenuBarManagerService: ObservableObject {
         if !isHidden {
             shownMaxX = window.frame.maxX
         }
-        if MenuBarManagerSupport.wouldHide(mainItemFrame(), dividerMinX: window.frame.minX) {
-            ownIconBlocksHiding = true
-            Self.log.info("hide refused: the main icon is left of the divider")
+        let strings = FeatureStrings.menuBarManager(L10n.shared.language)
+        ownIconBlocksHiding = MenuBarManagerSupport.wouldHide(mainItemFrame(), dividerMinX: window.frame.minX)
+        arrowBlocksHiding = MenuBarManagerSupport.wouldHide(toggle?.button?.window?.frame,
+                                                            dividerMinX: window.frame.minX)
+        if ownIconBlocksHiding || arrowBlocksHiding {
+            Self.log.info("hide refused: \(self.ownIconBlocksHiding ? "the main icon" : "the arrow", privacy: .public) is left of the divider")
             // A click that does nothing reads as a broken button, so a click
             // of the user's own says why; the automatic hide stays quiet.
             if NSApp.currentEvent?.type == .leftMouseUp || NSApp.currentEvent?.type == .rightMouseUp {
-                explainRefusal(from: divider)
+                explainRefusal(from: divider,
+                               text: ownIconBlocksHiding ? strings.ownIconWarning : strings.arrowWarning)
             }
             return
         }
-        ownIconBlocksHiding = false
         guard let shownMaxX else { return }
         let screenFrame = (window.screen ?? NSScreen.main)?.frame ?? .zero
         let length = MenuBarManagerSupport.hiddenLength(
@@ -240,21 +251,24 @@ final class MenuBarManagerService: ObservableObject {
     /// Watches for a click on the system « while items are hidden.
     ///
     /// A tap claims the click before macOS sees it, so the overflow menu
-    /// never opens over the frontmost app's menus. It needs Accessibility;
-    /// without it a global monitor still reveals the items, but only after
-    /// the overflow has flashed open. Either one exists only while items are
-    /// hidden.
+    /// never opens over the frontmost app's menus. It needs Accessibility
+    /// to have found the «, since a click it claims is lost to the app
+    /// below; otherwise a global monitor still reveals the items, but only
+    /// after the overflow has flashed open. Either one exists only while
+    /// items are hidden.
     private func installOverflowClickMonitor() {
         removeOverflowClickMonitor()
-        guard isHidden, let chevronCenterFromRight = locateOverflowChevron() else { return }
-        self.chevronCenterFromRight = chevronCenterFromRight
-        let zones = MenuBarManagerSupport.overflowChevronZones(
-            screens: NSScreen.screens.map(\.frame),
-            mainMaxY: NSScreen.screens.first?.frame.maxY ?? 0,
-            chevronCenterFromRight: chevronCenterFromRight,
-            barHeight: NSStatusBar.system.thickness)
-        overflowClickTapActive = overflowClickTap.activate(zones: zones)
-        if overflowClickTapActive { return }
+        guard isHidden, let chevron = locateOverflowChevron() else { return }
+        chevronCenterFromRight = chevron.centerFromRight
+        if chevron.isConfirmed {
+            let zones = MenuBarManagerSupport.overflowChevronZones(
+                screens: NSScreen.screens.map(\.frame),
+                mainMaxY: NSScreen.screens.first?.frame.maxY ?? 0,
+                chevronCenterFromRight: chevron.centerFromRight,
+                barHeight: NSStatusBar.system.thickness)
+            overflowClickTapActive = overflowClickTap.activate(zones: zones)
+            if overflowClickTapActive { return }
+        }
         // A global event has no window, so its location is already in screen
         // coordinates, and it is where the click landed, not where the
         // pointer has moved since.
@@ -276,8 +290,9 @@ final class MenuBarManagerService: ObservableObject {
 
     /// The « as a distance of its center from the right edge of the menu
     /// bar. Accessibility reports it as the one button among MenuBarAgent's
-    /// items; without an answer, it is expected where the divider ended.
-    private func locateOverflowChevron() -> CGFloat? {
+    /// items; without an answer, it is expected where the divider ended,
+    /// which is a guess.
+    private func locateOverflowChevron() -> (centerFromRight: CGFloat, isConfirmed: Bool)? {
         if AXIsProcessTrusted(),
            let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first {
             let element = AXUIElementCreateApplication(agent.processIdentifier)
@@ -289,13 +304,14 @@ final class MenuBarManagerService: ObservableObject {
                     guard let frame = Self.axFrame(item),
                           let screen = NSScreen.screens.first(where: { frame.midX >= $0.frame.minX && frame.midX < $0.frame.maxX })
                     else { continue }
-                    return screen.frame.maxX - frame.midX
+                    return (screen.frame.maxX - frame.midX, true)
                 }
             }
         }
         guard let shownMaxX, let dividerScreen = divider?.button?.window?.screen else { return nil }
-        return MenuBarManagerSupport.estimatedChevronCenterFromRight(shownMaxX: shownMaxX,
-                                                                     dividerScreen: dividerScreen.frame)
+        return (MenuBarManagerSupport.estimatedChevronCenterFromRight(shownMaxX: shownMaxX,
+                                                                      dividerScreen: dividerScreen.frame),
+                false)
     }
 
     private static func axValue(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
@@ -350,6 +366,7 @@ final class MenuBarManagerService: ObservableObject {
     /// long enough to measure again and then hidden with a fresh length.
     private func relayoutIfHidden() {
         guard isHidden, let divider else { return }
+        removeOverflowClickMonitor()
         observedFloor = nil
         isHidden = false
         setLength(divider, NSStatusItem.variableLength)
@@ -407,9 +424,8 @@ final class MenuBarManagerService: ObservableObject {
     }
 
     /// A small note under the divider, gone at the next click anywhere.
-    private func explainRefusal(from item: NSStatusItem) {
+    private func explainRefusal(from item: NSStatusItem, text: String) {
         guard let button = item.button else { return }
-        let text = FeatureStrings.menuBarManager(L10n.shared.language).ownIconWarning
         let label = NSTextField(wrappingLabelWithString: text)
         label.preferredMaxLayoutWidth = 260
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -497,8 +513,9 @@ private final class OverflowChevronTap {
     /// Written on the main thread, read by the callback, both under `lock`.
     private var zones: [CGRect] = []
     private var isActive = false
-    /// Only touched on the pointer thread: the release that ends a claimed
-    /// press is claimed too, so no app sees half a click.
+    /// The release that ends a claimed press is claimed too, so no app sees
+    /// half a click. Under `lock`: switching the tap on clears it, since the
+    /// reveal switches the tap off before that release arrives.
     private var claimedPress = false
 
     /// Starts claiming clicks in `zones`. False when the tap cannot exist,
@@ -508,6 +525,7 @@ private final class OverflowChevronTap {
         lock.lock()
         self.zones = zones
         isActive = true
+        claimedPress = false
         lock.unlock()
         CGEvent.tapEnable(tap: port, enable: true)
         return true
@@ -559,6 +577,15 @@ private final class OverflowChevronTap {
         lock.lock()
         let active = isActive
         let hit = active && zones.contains(where: { $0.contains(event.location) })
+        let claimsRelease = claimedPress
+        switch type {
+        case .leftMouseDown where hit:
+            claimedPress = true
+        case .leftMouseUp:
+            claimedPress = false
+        default:
+            break
+        }
         lock.unlock()
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
@@ -566,13 +593,10 @@ private final class OverflowChevronTap {
             return Unmanaged.passUnretained(event)
         case .leftMouseDown:
             guard hit else { return Unmanaged.passUnretained(event) }
-            claimedPress = true
             onClick?()
             return nil
         case .leftMouseUp:
-            guard claimedPress else { return Unmanaged.passUnretained(event) }
-            claimedPress = false
-            return nil
+            return claimsRelease ? nil : Unmanaged.passUnretained(event)
         default:
             return Unmanaged.passUnretained(event)
         }

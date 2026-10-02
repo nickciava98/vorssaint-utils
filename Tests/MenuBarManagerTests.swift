@@ -111,9 +111,15 @@ enum MenuBarManagerTests {
             && !zones[0].contains(CGPoint(x: 1235, y: 60)),
             "the tap claims the « on every display, in top-left coordinates, and nothing else")
 
+        let osMajor = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        suite.expect(AppFeature.menuBarManager.energyProfile
+            == (MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor) ? .mouse : .idle),
+            "the « click watch counts as mouse input on macOS 27, where it runs while icons are hidden")
+
         for language in AppLanguage.allCases {
             let strings = FeatureStrings.menuBarManager(language)
             suite.expect(!strings.title.isEmpty && !strings.howTo.isEmpty && !strings.arrowHint.isEmpty
+                && !strings.ownIconWarning.isEmpty && !strings.arrowWarning.isEmpty
                 && strings.rehideSecondsFormat.contains("%d"),
                 "menu bar manager strings are complete for \(language.rawValue)")
         }

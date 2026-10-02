@@ -260,8 +260,8 @@ private struct MenuBarManagerSettings: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, settingsRowTextInset)
-                if service.ownIconBlocksHiding {
-                    Text(text.ownIconWarning)
+                if service.ownIconBlocksHiding || service.arrowBlocksHiding {
+                    Text(service.ownIconBlocksHiding ? text.ownIconWarning : text.arrowWarning)
                         .font(.caption)
                         .foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
