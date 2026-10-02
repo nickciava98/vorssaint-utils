@@ -27,7 +27,9 @@ enum MenuBarManagerSupport {
     /// fitting move into the system overflow menu, and a divider whose left
     /// edge would cross about a fifth of the display is dropped by itself,
     /// which brings every hidden item back. Measured on a 1920 point display:
-    /// the frame stops at x = 408 and a longer divider is evicted.
+    /// the frame stops at x = 408 and a longer divider is evicted. On a 1135
+    /// point Sidecar display the estimate, at 251, sits inside the range
+    /// that hides without a clamp.
     static let overflowFloorFraction: CGFloat = 0.2
     static let overflowFloorInset: CGFloat = 24
     /// Keeps the divider clear of the floor so rounding never evicts it.
@@ -67,16 +69,13 @@ enum MenuBarManagerSupport {
     ///     grows leftwards, so this edge does not move while it is hidden.
     ///   - chrome: what the item window adds around its length.
     ///   - cameraMaxX: the right edge of the display's camera housing, if any.
-    ///   - observedFloor: the floor a clamped frame reported, if any.
     static func hiddenLength(osMajor: Int,
                              shownMaxX: CGFloat,
                              screenFrame: CGRect,
                              cameraMaxX: CGFloat?,
-                             chrome: CGFloat,
-                             observedFloor: CGFloat?) -> CGFloat {
+                             chrome: CGFloat) -> CGFloat {
         guard usesOverflowMenu(osMajor: osMajor) else { return offscreenHiddenLength }
-        let estimate = estimatedOverflowFloor(screenFrame: screenFrame, cameraMaxX: cameraMaxX)
-        let floor = observedFloor.map { max($0, estimate) } ?? estimate
+        let floor = estimatedOverflowFloor(screenFrame: screenFrame, cameraMaxX: cameraMaxX)
         let length = shownMaxX - floor - overflowFloorMargin - max(0, chrome)
         return max(materializationLength, length.rounded(.down))
     }
@@ -104,12 +103,6 @@ enum MenuBarManagerSupport {
         return Double((screenFrame.maxX - anchor.minX + gap).rounded())
     }
 
-    /// Half the width of the area around the system « that counts as a click
-    /// on it; the chevron itself is 18 points wide.
-    static let overflowChevronReach: CGFloat = 14
-    /// How long after a reveal a click on the divider is taken as the release
-    /// of the click that revealed, not as a request to hide.
-    static let revealClickGrace: TimeInterval = 0.6
     /// The » divider's width on macOS 27, close to the system « it replaces.
     static let shownDividerLength: CGFloat = 24
     /// Room added above and below our » so it lines up with the system « it
@@ -126,38 +119,6 @@ enum MenuBarManagerSupport {
     static let overflowChevronShift: CGFloat = 3
     /// How long macOS 27 takes to slide revealed items into place.
     static let revealSettleDelay: TimeInterval = 0.3
-
-    /// Whether a click lands on the system « of any display. macOS 27 draws
-    /// the same items on every menu bar, aligned to its right edge, so the
-    /// chevron is placed by the distance of its center from that edge.
-    static func isOverflowChevronClick(_ point: CGPoint,
-                                       clickScreen: CGRect,
-                                       chevronCenterFromRight: CGFloat,
-                                       barHeight: CGFloat) -> Bool {
-        guard point.y <= clickScreen.maxY, point.y >= clickScreen.maxY - barHeight else { return false }
-        let clickFromRight = clickScreen.maxX - point.x
-        return abs(clickFromRight - chevronCenterFromRight) <= overflowChevronReach
-    }
-
-    /// Where the « is expected when Accessibility cannot say: just right of
-    /// the edge the divider had while shown.
-    static func estimatedChevronCenterFromRight(shownMaxX: CGFloat, dividerScreen: CGRect) -> CGFloat {
-        dividerScreen.maxX - shownMaxX
-    }
-
-    /// The menu bar of every display, in the top-left coordinates that event
-    /// taps report. Only a click inside one is checked for the «, which
-    /// keeps the check off every other click. `screens` are AppKit frames
-    /// with the height of their bar, which is taller beside a camera;
-    /// `mainMaxY` is the top of the main display.
-    static func menuBarStrips(screens: [(frame: CGRect, barHeight: CGFloat)], mainMaxY: CGFloat) -> [CGRect] {
-        screens.map { screen in
-            CGRect(x: screen.frame.minX,
-                   y: mainMaxY - screen.frame.maxY,
-                   width: screen.frame.width,
-                   height: screen.barHeight)
-        }
-    }
 
     /// Whether hiding should wait because the pointer is on the menu bar,
     /// where the user is likely reaching for a revealed item.

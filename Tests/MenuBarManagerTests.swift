@@ -9,18 +9,18 @@ enum MenuBarManagerTests {
         let display = CGRect(x: 0, y: 0, width: 1920, height: 1080)
 
         suite.expect(MenuBarManagerSupport.hiddenLength(
-            osMajor: 26, shownMaxX: 1332, screenFrame: display, cameraMaxX: nil, chrome: 16, observedFloor: nil)
+            osMajor: 26, shownMaxX: 1332, screenFrame: display, cameraMaxX: nil, chrome: 16)
             == MenuBarManagerSupport.offscreenHiddenLength,
             "up to macOS 26 the divider pushes hidden items past the display edge")
         suite.expect(MenuBarManagerSupport.hiddenLength(
-            osMajor: 14, shownMaxX: 1332, screenFrame: display, cameraMaxX: nil, chrome: 16, observedFloor: nil)
+            osMajor: 14, shownMaxX: 1332, screenFrame: display, cameraMaxX: nil, chrome: 16)
             == MenuBarManagerSupport.offscreenHiddenLength,
             "Sonoma uses the same off-screen divider")
 
         // Measured on macOS 27 with a 1920 point display: the divider's left
         // edge stops at 408, and a divider reaching past it is dropped.
         let length27 = MenuBarManagerSupport.hiddenLength(
-            osMajor: 27, shownMaxX: 1332, screenFrame: display, cameraMaxX: nil, chrome: 16, observedFloor: nil)
+            osMajor: 27, shownMaxX: 1332, screenFrame: display, cameraMaxX: nil, chrome: 16)
         let leftEdge = 1332 - length27 - 16
         suite.expect(leftEdge >= 408 && leftEdge <= 424,
                      "on macOS 27 the divider stops just short of the measured floor")
@@ -29,18 +29,23 @@ enum MenuBarManagerTests {
 
         let secondDisplay = CGRect(x: -1920, y: -267, width: 1920, height: 1080)
         let lengthOnSecond = MenuBarManagerSupport.hiddenLength(
-            osMajor: 27, shownMaxX: -588, screenFrame: secondDisplay, cameraMaxX: nil, chrome: 16, observedFloor: nil)
+            osMajor: 27, shownMaxX: -588, screenFrame: secondDisplay, cameraMaxX: nil, chrome: 16)
         suite.expect(lengthOnSecond == length27,
                      "the floor follows the display the divider is on")
 
-        let corrected = MenuBarManagerSupport.hiddenLength(
-            osMajor: 27, shownMaxX: 1332, screenFrame: display, cameraMaxX: nil, chrome: 16, observedFloor: 600)
-        suite.expect(1332 - corrected - 16 >= 600,
-                     "a floor reported by a clamped frame wins over the estimate")
         suite.expect(MenuBarManagerSupport.hiddenLength(
-            osMajor: 27, shownMaxX: 300, screenFrame: display, cameraMaxX: nil, chrome: 16, observedFloor: nil)
+            osMajor: 27, shownMaxX: 300, screenFrame: display, cameraMaxX: nil, chrome: 16)
             == MenuBarManagerSupport.materializationLength,
             "a divider already left of the floor never gets a negative length")
+
+        // Measured on macOS 27 with a 1135 point Sidecar display holding the
+        // active menu bar: from a shown edge at -539, dividers of 150 to 350
+        // points hid the items and longer ones were clamped.
+        let sidecar = CGRect(x: -1135, y: 193, width: 1135, height: 789)
+        let lengthOnSidecar = MenuBarManagerSupport.hiddenLength(
+            osMajor: 27, shownMaxX: -539, screenFrame: sidecar, cameraMaxX: nil, chrome: 16)
+        suite.expect(lengthOnSidecar >= 150 && lengthOnSidecar <= 350,
+                     "on a Sidecar display the divider stays in the range that hides without a clamp")
 
         // Measured on macOS 27 with a notched 1512 point display: items fit
         // only right of the camera, which ends at 848.5, and hide into the «
@@ -48,7 +53,7 @@ enum MenuBarManagerTests {
         // got the divider dropped.
         let notched = CGRect(x: 0, y: 0, width: 1512, height: 982)
         let lengthBesideCamera = MenuBarManagerSupport.hiddenLength(
-            osMajor: 27, shownMaxX: 973, screenFrame: notched, cameraMaxX: 848.5, chrome: 16, observedFloor: nil)
+            osMajor: 27, shownMaxX: 973, screenFrame: notched, cameraMaxX: 848.5, chrome: 16)
         let notchedLeftEdge = 973 - lengthBesideCamera - 16
         suite.expect(notchedLeftEdge >= 848.5 && notchedLeftEdge <= 864,
                      "on a notched display the divider stops just right of the camera")
@@ -99,40 +104,9 @@ enum MenuBarManagerTests {
         suite.expect(MenuBarManagerSupport.rehideChoices.contains(MenuBarManagerSupport.defaultRehideSeconds),
                      "the default rehide delay is one of the choices")
 
-        // Measured on macOS 27: the system « at x = 1226...1244 on the main
-        // display, center 685 points from its right edge; the same bar is
-        // drawn on the second display.
-        let barHeight: CGFloat = 33
-        let chevron: CGFloat = 685
-        suite.expect(MenuBarManagerSupport.isOverflowChevronClick(
-            CGPoint(x: 1235, y: 1070), clickScreen: display, chevronCenterFromRight: chevron, barHeight: barHeight),
-            "a click on the system « counts")
-        suite.expect(MenuBarManagerSupport.isOverflowChevronClick(
-            CGPoint(x: -685, y: 803), clickScreen: secondDisplay, chevronCenterFromRight: chevron, barHeight: barHeight),
-            "a click on the « of the other display counts too")
-        suite.expect(!MenuBarManagerSupport.isOverflowChevronClick(
-            CGPoint(x: 1270, y: 1070), clickScreen: display, chevronCenterFromRight: chevron, barHeight: barHeight),
-            "a click on the neighbouring Vorssaint icon does not reveal")
-        suite.expect(!MenuBarManagerSupport.isOverflowChevronClick(
-            CGPoint(x: 1235, y: 600), clickScreen: display, chevronCenterFromRight: chevron, barHeight: barHeight),
-            "a click below the menu bar does not reveal")
-        suite.expect(MenuBarManagerSupport.estimatedChevronCenterFromRight(shownMaxX: 1236, dividerScreen: display) == 684,
-                     "without Accessibility the « is expected where the divider ended")
 
-        let strips = MenuBarManagerSupport.menuBarStrips(
-            screens: [(notched, 32), (CGRect(x: -1135, y: 193, width: 1135, height: 789), 22)], mainMaxY: 982)
-        suite.expect(strips.count == 2
-            && strips[0].contains(CGPoint(x: 993, y: 11))
-            && strips[0].contains(CGPoint(x: 993, y: 30))
-            && !strips[0].contains(CGPoint(x: 993, y: 40))
-            && strips[1].contains(CGPoint(x: -400, y: 0))
-            && !strips[1].contains(CGPoint(x: -400, y: 30)),
-            "the « is looked for on every menu bar, as tall as each one, in top-left coordinates")
-
-        let osMajor = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
-        suite.expect(AppFeature.menuBarManager.energyProfile
-            == (MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor) ? .mouse : .idle),
-            "the « click watch counts as mouse input on macOS 27, where it runs while icons are hidden")
+        suite.expect(AppFeature.menuBarManager.energyProfile == .idle,
+                     "nothing runs while icons are hidden: the system « and » show and hide them")
 
         for language in AppLanguage.allCases {
             let strings = FeatureStrings.menuBarManager(language)

@@ -54,7 +54,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d seconds",
         ownIconWarning: "The Vorssaint icon is left of the divider. Hold Command and drag it to the right of the divider so it is never hidden.",
         arrowWarning: "The arrow is left of the divider. Hold Command and drag it to the right of the divider so it is never hidden.",
-        overflowNote: "Click the system « to show hidden icons in place, next to the others. Click the divider to hide them again.",
+        overflowNote: "Hidden icons go into the system «. Click « to show them and » to hide them again.",
         dividerTooltip: "Icons left of this divider are hidden",
         hideTooltip: "Hide menu bar icons",
         showTooltip: "Show hidden menu bar icons")
@@ -69,7 +69,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d segundos",
         ownIconWarning: "O ícone do Vorssaint está à esquerda do divisor. Segure Command e arraste-o para a direita do divisor para que nunca fique oculto.",
         arrowWarning: "A seta está à esquerda do divisor. Segure Command e arraste-a para a direita do divisor para que nunca fique oculta.",
-        overflowNote: "Clique no « do sistema para mostrar os ícones ocultos no lugar, ao lado dos outros. Clique no divisor para ocultá-los de novo.",
+        overflowNote: "Os ícones ocultos vão para o « do sistema. Clique no « para mostrá-los e no » para ocultá-los de novo.",
         dividerTooltip: "Os ícones à esquerda deste divisor ficam ocultos",
         hideTooltip: "Ocultar ícones da barra de menus",
         showTooltip: "Mostrar ícones ocultos da barra de menus")
@@ -84,7 +84,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d saniye",
         ownIconWarning: "Vorssaint simgesi ayırıcının solunda. Hiç gizlenmemesi için Command tuşunu basılı tutup ayırıcının sağına sürükleyin.",
         arrowWarning: "Ok ayırıcının solunda. Hiç gizlenmemesi için Command tuşunu basılı tutup ayırıcının sağına sürükleyin.",
-        overflowNote: "Gizli simgeleri diğerlerinin yanında, yerinde göstermek için sistemin « düğmesine tıklayın. Yeniden gizlemek için ayırıcıya tıklayın.",
+        overflowNote: "Gizli simgeler sistemin « düğmesine taşınır. Göstermek için «, yeniden gizlemek için » düğmesine tıklayın.",
         dividerTooltip: "Bu ayırıcının solundaki simgeler gizlenir",
         hideTooltip: "Menü çubuğu simgelerini gizle",
         showTooltip: "Gizli menü çubuğu simgelerini göster")
@@ -99,7 +99,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d с",
         ownIconWarning: "Значок Vorssaint находится левее разделителя. Удерживая Command, перетащите его правее разделителя, чтобы он никогда не скрывался.",
         arrowWarning: "Стрелка находится левее разделителя. Удерживая Command, перетащите её правее разделителя, чтобы она никогда не скрывалась.",
-        overflowNote: "Щёлкните системную кнопку «, чтобы показать скрытые значки на их месте, рядом с остальными. Щёлкните разделитель, чтобы снова скрыть их.",
+        overflowNote: "Скрытые значки попадают в системную кнопку «. Щёлкните «, чтобы показать их, и », чтобы снова скрыть.",
         dividerTooltip: "Значки левее этого разделителя скрыты",
         hideTooltip: "Скрыть значки строки меню",
         showTooltip: "Показать скрытые значки строки меню")
@@ -114,7 +114,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d segundos",
         ownIconWarning: "El icono de Vorssaint está a la izquierda del divisor. Mantén pulsada Comando y arrástralo a la derecha del divisor para que nunca se oculte.",
         arrowWarning: "La flecha está a la izquierda del divisor. Mantén pulsada Comando y arrástrala a la derecha del divisor para que nunca se oculte.",
-        overflowNote: "Haz clic en el « del sistema para mostrar los iconos ocultos en su sitio, junto a los demás. Haz clic en el divisor para volver a ocultarlos.",
+        overflowNote: "Los iconos ocultos van al « del sistema. Haz clic en « para mostrarlos y en » para volver a ocultarlos.",
         dividerTooltip: "Los iconos a la izquierda de este divisor están ocultos",
         hideTooltip: "Ocultar iconos de la barra de menús",
         showTooltip: "Mostrar iconos ocultos de la barra de menús")
@@ -129,7 +129,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d s",
         ownIconWarning: "Ikona Vorssaint je naľavo od oddeľovača. Podržte Command a presuňte ju napravo od oddeľovača, aby sa nikdy neskryla.",
         arrowWarning: "Šípka je naľavo od oddeľovača. Podržte Command a presuňte ju napravo od oddeľovača, aby sa nikdy neskryla.",
-        overflowNote: "Kliknutím na systémové « zobrazíte skryté ikony na ich mieste, vedľa ostatných. Kliknutím na oddeľovač ich znova skryjete.",
+        overflowNote: "Skryté ikony sa presunú do systémového «. Kliknutím na « ich zobrazíte a kliknutím na » ich znova skryjete.",
         dividerTooltip: "Ikony naľavo od tohto oddeľovača sú skryté",
         hideTooltip: "Skryť ikony na lište menu",
         showTooltip: "Zobraziť skryté ikony na lište menu")
@@ -144,7 +144,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d Sekunden",
         ownIconWarning: "Das Vorssaint-Symbol liegt links vom Trenner. Halte die Befehlstaste gedrückt und ziehe es rechts neben den Trenner, damit es nie ausgeblendet wird.",
         arrowWarning: "Der Pfeil liegt links vom Trenner. Halte die Befehlstaste gedrückt und ziehe ihn rechts neben den Trenner, damit er nie ausgeblendet wird.",
-        overflowNote: "Klicke auf das « des Systems, um ausgeblendete Symbole an ihrem Platz neben den anderen zu zeigen. Klicke auf den Trenner, um sie wieder auszublenden.",
+        overflowNote: "Ausgeblendete Symbole wandern in das « des Systems. Klicke auf «, um sie zu zeigen, und auf », um sie wieder auszublenden.",
         dividerTooltip: "Symbole links von diesem Trenner sind ausgeblendet",
         hideTooltip: "Menüleistensymbole ausblenden",
         showTooltip: "Ausgeblendete Menüleistensymbole einblenden")
@@ -159,7 +159,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d secondes",
         ownIconWarning: "L’icône Vorssaint est à gauche du séparateur. Maintenez Commande et faites-la glisser à droite du séparateur pour qu’elle ne soit jamais masquée.",
         arrowWarning: "La flèche est à gauche du séparateur. Maintenez Commande et faites-la glisser à droite du séparateur pour qu’elle ne soit jamais masquée.",
-        overflowNote: "Cliquez sur le «, affiché par le système, pour montrer les icônes masquées à leur place, à côté des autres. Cliquez sur le séparateur pour les masquer de nouveau.",
+        overflowNote: "Les icônes masquées vont dans le «, affiché par le système. Cliquez sur «, pour les afficher, puis sur », pour les masquer de nouveau.",
         dividerTooltip: "Les icônes à gauche de ce séparateur sont masquées",
         hideTooltip: "Masquer les icônes de la barre des menus",
         showTooltip: "Afficher les icônes masquées de la barre des menus")
@@ -174,7 +174,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d secondi",
         ownIconWarning: "L’icona di Vorssaint è a sinistra del separatore. Tieni premuto Comando e trascinala a destra del separatore, così non viene mai nascosta.",
         arrowWarning: "La freccia è a sinistra del separatore. Tieni premuto Comando e trascinala a destra del separatore, così non viene mai nascosta.",
-        overflowNote: "Fai clic sul « di sistema per mostrare le icone nascoste al loro posto, accanto alle altre. Fai clic sul separatore per nasconderle di nuovo.",
+        overflowNote: "Le icone nascoste finiscono nel « di sistema. Fai clic su « per mostrarle e su » per nasconderle di nuovo.",
         dividerTooltip: "Le icone a sinistra di questo separatore sono nascoste",
         hideTooltip: "Nascondi icone della barra dei menu",
         showTooltip: "Mostra le icone nascoste della barra dei menu")
@@ -189,7 +189,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d秒",
         ownIconWarning: "Vorssaintのアイコンが区切りの左にあります。隠れないように、Commandキーを押したまま区切りの右へドラッグしてください。",
         arrowWarning: "矢印が区切りの左にあります。隠れないように、Commandキーを押したまま区切りの右へドラッグしてください。",
-        overflowNote: "システムの « をクリックすると、隠したアイコンが他のアイコンの隣の元の位置に表示されます。区切りをクリックすると再び隠れます。",
+        overflowNote: "隠したアイコンはシステムの « に入ります。« をクリックすると表示され、» をクリックすると再び隠れます。",
         dividerTooltip: "この区切りより左のアイコンは隠れます",
         hideTooltip: "メニューバーアイコンを隠す",
         showTooltip: "隠したメニューバーアイコンを表示")
@@ -204,7 +204,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d초",
         ownIconWarning: "Vorssaint 아이콘이 구분선 왼쪽에 있습니다. 숨겨지지 않도록 Command 키를 누른 채 구분선 오른쪽으로 드래그하세요.",
         arrowWarning: "화살표가 구분선 왼쪽에 있습니다. 숨겨지지 않도록 Command 키를 누른 채 구분선 오른쪽으로 드래그하세요.",
-        overflowNote: "시스템 « 을 클릭하면 숨긴 아이콘이 다른 아이콘 옆 제자리에 표시됩니다. 구분선을 클릭하면 다시 숨겨집니다.",
+        overflowNote: "숨긴 아이콘은 시스템 « 안으로 들어갑니다. « 을 클릭하면 표시되고 » 을 클릭하면 다시 숨겨집니다.",
         dividerTooltip: "이 구분선 왼쪽의 아이콘은 숨겨집니다",
         hideTooltip: "메뉴 막대 아이콘 숨기기",
         showTooltip: "숨긴 메뉴 막대 아이콘 표시")
@@ -219,7 +219,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d с",
         ownIconWarning: "Значок Vorssaint розташований ліворуч від роздільника. Утримуючи Command, перетягніть його праворуч від роздільника, щоб він ніколи не приховувався.",
         arrowWarning: "Стрілка розташована ліворуч від роздільника. Утримуючи Command, перетягніть її праворуч від роздільника, щоб вона ніколи не приховувалася.",
-        overflowNote: "Клацніть системну кнопку «, щоб показати приховані значки на їхньому місці, поруч з іншими. Клацніть роздільник, щоб знову приховати їх.",
+        overflowNote: "Приховані значки потрапляють у системну кнопку «. Клацніть «, щоб показати їх, і », щоб знову приховати.",
         dividerTooltip: "Значки ліворуч від цього роздільника приховано",
         hideTooltip: "Приховати значки рядка меню",
         showTooltip: "Показати приховані значки рядка меню")
@@ -234,7 +234,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d 秒后",
         ownIconWarning: "Vorssaint 图标位于分隔线左侧。请按住 Command 键将它拖到分隔线右侧，以免被隐藏。",
         arrowWarning: "箭头位于分隔线左侧。请按住 Command 键将它拖到分隔线右侧，以免被隐藏。",
-        overflowNote: "点按系统的 « 即可在原位置显示隐藏的图标，紧挨其他图标。点按分隔线可再次隐藏。",
+        overflowNote: "隐藏的图标会进入系统的 «。点按 « 可显示它们，点按 » 可再次隐藏。",
         dividerTooltip: "此分隔线左侧的图标已隐藏",
         hideTooltip: "隐藏菜单栏图标",
         showTooltip: "显示隐藏的菜单栏图标")
@@ -249,7 +249,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d 秒後",
         ownIconWarning: "Vorssaint 圖像位於分隔線左側。請按住 Command 鍵將它拖到分隔線右側，以免被隱藏。",
         arrowWarning: "箭頭位於分隔線左側。請按住 Command 鍵將它拖到分隔線右側，以免被隱藏。",
-        overflowNote: "按一下系統的 « 即可在原位置顯示隱藏的圖像，緊鄰其他圖像。按一下分隔線可再次隱藏。",
+        overflowNote: "隱藏的圖像會進入系統的 «。按一下 « 可顯示它們，按一下 » 可再次隱藏。",
         dividerTooltip: "此分隔線左側的圖像已隱藏",
         hideTooltip: "隱藏選單列圖像",
         showTooltip: "顯示隱藏的選單列圖像")
@@ -264,7 +264,7 @@ extension MenuBarManagerFeatureStrings {
         rehideSecondsFormat: "%d 秒後",
         ownIconWarning: "Vorssaint 圖示位於分隔線左邊。請按住 Command 鍵將它拖到分隔線右邊，以免被隱藏。",
         arrowWarning: "箭嘴位於分隔線左邊。請按住 Command 鍵將它拖到分隔線右邊，以免被隱藏。",
-        overflowNote: "按一下系統的 « 即可在原位置顯示隱藏的圖示，緊貼其他圖示。按一下分隔線可再次隱藏。",
+        overflowNote: "隱藏的圖示會進入系統的 «。按一下 « 可顯示它們，按一下 » 可再次隱藏。",
         dividerTooltip: "此分隔線左邊的圖示已隱藏",
         hideTooltip: "隱藏選單列圖示",
         showTooltip: "顯示隱藏的選單列圖示")
