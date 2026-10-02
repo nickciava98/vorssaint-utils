@@ -88,6 +88,18 @@ enum MenuBarManagerSupport {
         frame.maxX > shownMaxX + 2 ? frame.minX : nil
     }
 
+    /// How far left of its target a hidden divider's left edge may land
+    /// before the layout is taken to have moved under it.
+    static let carriedTolerance: CGFloat = 24
+
+    /// Whether the divider's left edge landed well left of where its length
+    /// should have put it, as when the system overflow is open on macOS 27.
+    /// Measured on a notched 1512 point display: a 100 point divider from
+    /// 973 should start at 857 and started at 534.
+    static func wasCarriedPastTarget(frameMinX: CGFloat, shownMaxX: CGFloat, length: CGFloat, chrome: CGFloat) -> Bool {
+        frameMinX < shownMaxX - length - chrome - carriedTolerance
+    }
+
     /// The saved position that places a new item just left of `anchor`.
     /// macOS counts positions in points from the right edge of the display.
     static func seedPosition(leftOf anchor: CGRect, screenFrame: CGRect, gap: CGFloat) -> Double? {

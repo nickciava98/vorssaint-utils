@@ -60,6 +60,12 @@ enum MenuBarManagerTests {
             frame: CGRect(x: 408, y: 1049, width: 916, height: 33), shownMaxX: 1332) == nil,
             "a divider that fits is not treated as clamped")
 
+        suite.expect(MenuBarManagerSupport.wasCarriedPastTarget(frameMinX: 534, shownMaxX: 973, length: 100, chrome: 16),
+                     "a divider carried left of the camera by the system overflow is noticed")
+        suite.expect(!MenuBarManagerSupport.wasCarriedPastTarget(frameMinX: 857, shownMaxX: 973, length: 100, chrome: 16)
+            && !MenuBarManagerSupport.wasCarriedPastTarget(frameMinX: 936, shownMaxX: 973, length: 623, chrome: 16),
+            "a divider where its length put it, or clamped short of it, is left alone")
+
         suite.expect(MenuBarManagerSupport.seedPosition(
             leftOf: CGRect(x: 1400, y: 1049, width: 129, height: 33), screenFrame: display, gap: 2) == 522,
             "new items are seeded just left of the main icon, counted from the right edge")
