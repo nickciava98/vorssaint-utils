@@ -35,6 +35,11 @@ final class StatusItemController {
     /// Dynamic Island or for separate metrics, as opposed to macOS dropping
     /// it. Recovery leaves such an item alone.
     private(set) var mainItemHiddenByChoice = false
+    /// Drops the countdown and inline metrics, leaving the glyph, so icons
+    /// the menu bar manager shows again have room beside it.
+    var isCompact = false {
+        didSet { if isCompact != oldValue { refresh() } }
+    }
     private var heldMicBadgeActive: Bool?
     /// A settings reply already waiting for the next turn of the run loop.
     private var settingsSyncScheduled = false
@@ -452,7 +457,7 @@ final class StatusItemController {
         // carry its green/yellow/red color; all other runs stay adaptive.
         let title = NSMutableAttributedString()
         var includesCountdown = false
-        if manager.isActive, defaults.bool(forKey: DefaultsKey.showCountdown) {
+        if !isCompact, manager.isActive, defaults.bool(forKey: DefaultsKey.showCountdown) {
             let countdown: String
             if let end = manager.endDate {
                 let remaining = max(0, Int(end.timeIntervalSinceNow))
@@ -471,7 +476,7 @@ final class StatusItemController {
             removeMetricStatusItems(except: Set<String>())
             renderedMetricItemCount = 0
         }
-        if !separateMetrics, !metrics.isEmpty {
+        if !isCompact, !separateMetrics, !metrics.isEmpty {
             let metricsTitle = MenuBarRenderer.attributed(for: snapshot,
                                                           metrics: metrics,
                                                           allowStacked: !includesCountdown,

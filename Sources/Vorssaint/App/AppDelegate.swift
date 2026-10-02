@@ -97,6 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             guard let item = self?.statusController?.statusItem, item.isVisible else { return nil }
             return item.button?.window?.frame
         }
+        MenuBarManagerService.shared.setMainItemCompact = { [weak self] compact in
+            self?.statusController?.isCompact = compact
+        }
         statusController.onLeftClick = { [weak self] in
             self?.captureStatusClick()
             self?.toggleMainPopover()

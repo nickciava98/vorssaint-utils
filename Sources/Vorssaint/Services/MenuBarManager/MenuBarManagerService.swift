@@ -30,6 +30,9 @@ final class MenuBarManagerService: ObservableObject {
     /// The main icon's window frame, provided by the app delegate so hiding
     /// can refuse to take the way back into the app with it.
     var mainItemFrame: () -> NSRect? = { nil }
+    /// Narrows the main icon to its glyph while hidden icons are shown, so
+    /// they find room beside the arrow instead of staying in the system «.
+    var setMainItemCompact: (Bool) -> Void = { _ in }
 
     private var divider: NSStatusItem?
     private var toggle: NSStatusItem?
@@ -41,6 +44,7 @@ final class MenuBarManagerService: ObservableObject {
     private var rehideTimer: Timer?
     private var pendingWork: DispatchWorkItem?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    private var mainItemCompact = false
     /// Set while a hide waits for the system overflow to close.
     private var hidesWhenOverflowCloses = false
     /// The items are made again in order once per start; if the arrow lands
@@ -94,6 +98,10 @@ final class MenuBarManagerService: ObservableObject {
         shownFromRight = nil
         hidesWhenOverflowCloses = false
         remadeItems = false
+        if mainItemCompact {
+            mainItemCompact = false
+            setMainItemCompact(false)
+        }
         isHidden = false
         ownIconBlocksHiding = false
         arrowBlocksHiding = false
@@ -229,6 +237,10 @@ final class MenuBarManagerService: ObservableObject {
             scheduleRehide()
             return
         }
+        // The bar beside the camera is usually full, so the main icon gives
+        // up its text before the items come back.
+        mainItemCompact = true
+        setMainItemCompact(true)
         // macOS 27 slides the shrinking divider into place, and an image set
         // now would ride its left edge across the bar. A fixed width keeps
         // the layout from moving again, and the mark appears once it has
@@ -246,6 +258,14 @@ final class MenuBarManagerService: ObservableObject {
         guard let divider, let window = divider.button?.window else { return }
         pendingWork?.cancel()
         cancelRehide()
+        // The main icon widens back first and the divider is measured once
+        // the bar has settled, from where it then stands.
+        if mainItemCompact {
+            mainItemCompact = false
+            setMainItemCompact(false)
+            schedule(after: MenuBarManagerSupport.revealSettleDelay) { [weak self] in self?.hide() }
+            return
+        }
         if !isHidden {
             shownMaxX = window.frame.maxX
             shownFromRight = window.screen.map { $0.frame.maxX - window.frame.maxX }
