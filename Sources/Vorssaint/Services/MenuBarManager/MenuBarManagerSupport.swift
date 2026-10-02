@@ -103,20 +103,8 @@ enum MenuBarManagerSupport {
         return Double((screenFrame.maxX - anchor.minX + gap).rounded())
     }
 
-    /// The » divider's width on macOS 27, close to the system « it replaces.
+    /// The shown divider's width on macOS 27, where it is given a fixed one.
     static let shownDividerLength: CGFloat = 24
-    /// Room added above and below our » so it lines up with the system « it
-    /// replaces. Measured on macOS 27 with a 1920 point display without a
-    /// camera: glyph rows 8-18 without it, 10-20 with it, the same rows as
-    /// the system chevron.
-    static let overflowChevronDrop: CGFloat = 1
-    /// The taller bar beside a camera centers the system « half a point
-    /// higher. Measured on a notched 1512 point display: glyph rows 22-43
-    /// at 2x for both chevrons with it, 23-44 for ours without it.
-    static let overflowChevronDropBesideCamera: CGFloat = -0.5
-    /// Room added on the left for the same reason: without it our » sat
-    /// three points left of the system «.
-    static let overflowChevronShift: CGFloat = 3
     /// How long macOS 27 takes to slide revealed items into place.
     static let revealSettleDelay: TimeInterval = 0.3
 

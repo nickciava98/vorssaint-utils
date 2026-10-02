@@ -50,6 +50,7 @@ enum DefaultsKey {
     static let menuBarManagerEnabled = "menuBarManagerEnabled"
     static let menuBarManagerRehideSeconds = "menuBarManagerRehideSeconds" // 0 keeps revealed icons until the next click
     static let menuBarManagerPlacementSeeded = "menuBarManagerPlacementSeeded" // machine state: the first placement next to the main icon ran
+    static let menuBarManagerItemsSwapped = "menuBarManagerItemsSwapped" // machine state: the arrow and divider trade saved places
     static let hasOnboarded = "hasOnboarded"
     static let sleepDisabledFlag = "vorssDisabledSleep"   // internal guard for pmset disablesleep
     static let dimmedDisplaySavedBrightness = "vorssDimmedDisplaySavedBrightness" // internal guard for closed-lid screen dimming recovery

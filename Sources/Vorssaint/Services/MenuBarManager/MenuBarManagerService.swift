@@ -13,9 +13,9 @@ import os
 ///
 /// Up to macOS 26 the hidden divider pushes the items past the left edge of
 /// the display, and a chevron of our own reveals them. On macOS 27 they move
-/// into the system « overflow instead, and the system « and » show and hide
-/// them: the manager only keeps the divider long enough on whichever display
-/// holds the active menu bar.
+/// into the system « overflow instead. Our arrow brings them back in place,
+/// beside the others; the system « still shows them its own way, left of the
+/// camera or over the app's menus, and is left alone.
 final class MenuBarManagerService: ObservableObject {
     static let shared = MenuBarManagerService()
 
@@ -43,6 +43,9 @@ final class MenuBarManagerService: ObservableObject {
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     /// Set while a hide waits for the system overflow to close.
     private var hidesWhenOverflowCloses = false
+    /// The items are made again in order once per start; if the arrow lands
+    /// left of the divider again, hiding is refused with a note instead.
+    private var remadeItems = false
     private let osMajor = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "vorssaint",
                                     category: "menubar-manager")
@@ -67,14 +70,7 @@ final class MenuBarManagerService: ObservableObject {
     private func start() {
         guard divider == nil else { return }
         seedPlacementOnce()
-        // A new item takes the spot left of the others, so the arrow comes
-        // first and an unseeded divider still lands on its left.
-        if !MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor) {
-            toggle = makeItem(autosaveName: MenuBarManagerSupport.toggleAutosaveName,
-                              action: #selector(toggleClicked))
-        }
-        divider = makeItem(autosaveName: MenuBarManagerSupport.dividerAutosaveName,
-                           action: #selector(toggleClicked))
+        makeItems()
         applyShownAppearance()
         observe()
         // The items need a layout pass before their frames can be read.
@@ -97,9 +93,26 @@ final class MenuBarManagerService: ObservableObject {
         shownMaxX = nil
         shownFromRight = nil
         hidesWhenOverflowCloses = false
+        remadeItems = false
         isHidden = false
         ownIconBlocksHiding = false
         arrowBlocksHiding = false
+    }
+
+    /// The saved names of the arrow and the divider. macOS keeps each item's
+    /// place under its name, so trading them trades the places.
+    private var autosaveNames: (toggle: String, divider: String) {
+        UserDefaults.standard.bool(forKey: DefaultsKey.menuBarManagerItemsSwapped)
+            ? (MenuBarManagerSupport.dividerAutosaveName, MenuBarManagerSupport.toggleAutosaveName)
+            : (MenuBarManagerSupport.toggleAutosaveName, MenuBarManagerSupport.dividerAutosaveName)
+    }
+
+    /// A new item takes the spot left of the others, so the arrow comes
+    /// first and the divider lands on its left.
+    private func makeItems() {
+        let names = autosaveNames
+        toggle = makeItem(autosaveName: names.toggle, action: #selector(toggleClicked))
+        divider = makeItem(autosaveName: names.divider, action: #selector(toggleClicked))
     }
 
     private func makeItem(autosaveName: String, action: Selector) -> NSStatusItem {
@@ -116,6 +129,35 @@ final class MenuBarManagerService: ObservableObject {
             button.imagePosition = .imageOnly
         }
         return item
+    }
+
+    /// The arrow sits left of the divider, as a new arrow does beside a
+    /// divider placed before it, and macOS 27 keeps an item's place under its
+    /// name whatever position is saved. The two trade names, and with them
+    /// places, so the arrow comes back where the divider was and the divider
+    /// where the arrow was.
+    private func remakeItemsInOrder() {
+        remadeItems = true
+        observers.forEach { $0.0.removeObserver($0.1) }
+        observers = []
+        for item in [divider, toggle].compactMap({ $0 }) {
+            removeKeepingPosition(item)
+        }
+        divider = nil
+        toggle = nil
+        shownMaxX = nil
+        shownFromRight = nil
+        let defaults = UserDefaults.standard
+        defaults.set(!defaults.bool(forKey: DefaultsKey.menuBarManagerItemsSwapped),
+                     forKey: DefaultsKey.menuBarManagerItemsSwapped)
+        schedule(after: 0.1) { [weak self] in
+            guard let self else { return }
+            self.makeItems()
+            self.applyShownAppearance()
+            self.observe()
+            Self.log.info("arrow and divider traded places")
+            self.schedule(after: 0.6) { [weak self] in self?.hide() }
+        }
     }
 
     /// Removing a status item forgets its saved position, so the value is put
@@ -142,13 +184,9 @@ final class MenuBarManagerService: ObservableObject {
               let togglePosition = MenuBarManagerSupport.seedPosition(
                 leftOf: anchor, screenFrame: screen.frame, gap: 2)
         else { return }
-        let usesToggle = !MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor)
-        if usesToggle {
-            defaults.set(togglePosition,
-                         forKey: "NSStatusItem Preferred Position \(MenuBarManagerSupport.toggleAutosaveName)")
-        }
-        defaults.set(togglePosition + (usesToggle ? 30 : 0),
-                     forKey: "NSStatusItem Preferred Position \(MenuBarManagerSupport.dividerAutosaveName)")
+        let names = autosaveNames
+        defaults.set(togglePosition, forKey: "NSStatusItem Preferred Position \(names.toggle)")
+        defaults.set(togglePosition + 30, forKey: "NSStatusItem Preferred Position \(names.divider)")
         defaults.set(true, forKey: DefaultsKey.menuBarManagerPlacementSeeded)
     }
 
@@ -185,7 +223,7 @@ final class MenuBarManagerService: ObservableObject {
         guard let divider else { return }
         pendingWork?.cancel()
         isHidden = false
-        guard toggle == nil else {
+        guard MenuBarManagerSupport.usesOverflowMenu(osMajor: osMajor) else {
             setLength(divider, NSStatusItem.variableLength)
             applyShownAppearance()
             scheduleRehide()
@@ -193,8 +231,11 @@ final class MenuBarManagerService: ObservableObject {
         }
         // macOS 27 slides the shrinking divider into place, and an image set
         // now would ride its left edge across the bar. A fixed width keeps
-        // the layout from moving again, and the » appears once it has settled.
+        // the layout from moving again, and the mark appears once it has
+        // settled.
         setLength(divider, MenuBarManagerSupport.shownDividerLength)
+        setImage(toggle, symbol: "chevron.compact.right",
+                 description: FeatureStrings.menuBarManager(L10n.shared.language).hideTooltip)
         schedule(after: MenuBarManagerSupport.revealSettleDelay) { [weak self] in
             self?.applyShownAppearance()
         }
@@ -213,6 +254,10 @@ final class MenuBarManagerService: ObservableObject {
         ownIconBlocksHiding = MenuBarManagerSupport.wouldHide(mainItemFrame(), dividerMinX: window.frame.minX)
         arrowBlocksHiding = MenuBarManagerSupport.wouldHide(toggle?.button?.window?.frame,
                                                             dividerMinX: window.frame.minX)
+        if arrowBlocksHiding, !ownIconBlocksHiding, !remadeItems {
+            remakeItemsInOrder()
+            return
+        }
         if ownIconBlocksHiding || arrowBlocksHiding {
             Self.log.info("hide refused: \(self.ownIconBlocksHiding ? "the main icon" : "the arrow", privacy: .public) is left of the divider")
             // A click that does nothing reads as a broken button, so a click
@@ -394,19 +439,8 @@ final class MenuBarManagerService: ObservableObject {
 
     private func applyShownAppearance() {
         let strings = FeatureStrings.menuBarManager(L10n.shared.language)
-        // With no chevron of ours, the divider turns into the » that hides
-        // the items, the counterpart of the system « that revealed them.
-        if toggle == nil {
-            setImage(divider, symbol: "chevron.right.2", description: strings.hideTooltip,
-                     offset: CGSize(width: MenuBarManagerSupport.overflowChevronShift,
-                                    height: divider?.button?.window?.screen?.auxiliaryTopRightArea == nil
-                                        ? MenuBarManagerSupport.overflowChevronDrop
-                                        : MenuBarManagerSupport.overflowChevronDropBesideCamera))
-            divider?.button?.toolTip = strings.hideTooltip
-        } else {
-            setImage(divider, symbol: "poweron", description: strings.dividerTooltip)
-            divider?.button?.toolTip = strings.dividerTooltip
-        }
+        setImage(divider, symbol: "poweron", description: strings.dividerTooltip)
+        divider?.button?.toolTip = strings.dividerTooltip
         setImage(toggle, symbol: "chevron.compact.right", description: strings.hideTooltip)
         toggle?.button?.toolTip = strings.hideTooltip
     }
@@ -419,28 +453,11 @@ final class MenuBarManagerService: ObservableObject {
         toggle?.button?.toolTip = strings.showTooltip
     }
 
-    /// `offset` moves the glyph right and down from where the button would
-    /// center it; a negative height moves it up.
-    private func setImage(_ item: NSStatusItem?, symbol: String, description: String, offset: CGSize = .zero) {
+    private func setImage(_ item: NSStatusItem?, symbol: String, description: String) {
         guard let button = item?.button,
-              let symbolImage = NSImage(systemSymbolName: symbol, accessibilityDescription: description)
+              let image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)
         else { return }
-        guard offset != .zero else {
-            symbolImage.isTemplate = true
-            button.image = symbolImage
-            return
-        }
-        // The button centers its image, so empty room on one side moves the
-        // glyph toward the other by half that room.
-        let size = NSSize(width: symbolImage.size.width + abs(offset.width) * 2,
-                          height: symbolImage.size.height + abs(offset.height) * 2)
-        let image = NSImage(size: size, flipped: false) { _ in
-            let origin = CGPoint(x: max(0, offset.width) * 2, y: max(0, -offset.height) * 2)
-            symbolImage.draw(in: NSRect(origin: origin, size: symbolImage.size))
-            return true
-        }
         image.isTemplate = true
-        image.accessibilityDescription = description
         button.image = image
     }
 }
