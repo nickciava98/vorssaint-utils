@@ -232,10 +232,12 @@ final class MenuBarManagerService: ObservableObject {
             return
         }
         guard let shownMaxX else { return }
-        let screenFrame = (window.screen ?? NSScreen.main)?.frame ?? .zero
+        let screen = window.screen ?? NSScreen.main
         let length = MenuBarManagerSupport.hiddenLength(
-            osMajor: osMajor, shownMaxX: shownMaxX, screenFrame: screenFrame,
+            osMajor: osMajor, shownMaxX: shownMaxX, screenFrame: screen?.frame ?? .zero,
+            cameraMaxX: screen?.auxiliaryTopRightArea?.minX,
             chrome: MenuBarManagerSupport.windowChrome, observedFloor: observedFloor)
+        Self.log.info("hiding with length \(length, privacy: .public) from \(shownMaxX, privacy: .public)")
         isHidden = true
         applyHiddenAppearance()
         setLength(divider, length)
@@ -251,24 +253,26 @@ final class MenuBarManagerService: ObservableObject {
     /// Watches for a click on the system « while items are hidden.
     ///
     /// A tap claims the click before macOS sees it, so the overflow menu
-    /// never opens over the frontmost app's menus. It needs Accessibility
-    /// to have found the «, since a click it claims is lost to the app
-    /// below; otherwise a global monitor still reveals the items, but only
-    /// after the overflow has flashed open. Either one exists only while
-    /// items are hidden.
+    /// never opens over the frontmost app's menus. A click it claims is lost
+    /// to whatever is below, so it asks Accessibility what the click landed
+    /// on and claims only the « itself, wherever it has moved and whether or
+    /// not a menu bar is showing. Without Accessibility a global monitor
+    /// still reveals the items, but only after the overflow has flashed
+    /// open. Either one exists only while items are hidden.
     private func installOverflowClickMonitor() {
         removeOverflowClickMonitor()
-        guard isHidden, let chevron = locateOverflowChevron() else { return }
-        chevronCenterFromRight = chevron.centerFromRight
-        if chevron.isConfirmed {
-            let zones = MenuBarManagerSupport.overflowChevronZones(
-                screens: NSScreen.screens.map(\.frame),
-                mainMaxY: NSScreen.screens.first?.frame.maxY ?? 0,
-                chevronCenterFromRight: chevron.centerFromRight,
-                barHeight: NSStatusBar.system.thickness)
-            overflowClickTapActive = overflowClickTap.activate(zones: zones)
+        guard isHidden else { return }
+        let strips = MenuBarManagerSupport.menuBarStrips(
+            screens: NSScreen.screens.map {
+                ($0.frame, max(NSStatusBar.system.thickness, $0.safeAreaInsets.top))
+            },
+            mainMaxY: NSScreen.screens.first?.frame.maxY ?? 0)
+        if let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first {
+            overflowClickTapActive = overflowClickTap.activate(strips: strips, agentPID: agent.processIdentifier)
             if overflowClickTapActive { return }
         }
+        guard let chevronCenterFromRight = locateOverflowChevron() else { return }
+        self.chevronCenterFromRight = chevronCenterFromRight
         // A global event has no window, so its location is already in screen
         // coordinates, and it is where the click landed, not where the
         // pointer has moved since.
@@ -290,9 +294,8 @@ final class MenuBarManagerService: ObservableObject {
 
     /// The « as a distance of its center from the right edge of the menu
     /// bar. Accessibility reports it as the one button among MenuBarAgent's
-    /// items; without an answer, it is expected where the divider ended,
-    /// which is a guess.
-    private func locateOverflowChevron() -> (centerFromRight: CGFloat, isConfirmed: Bool)? {
+    /// items; without an answer, it is expected where the divider ended.
+    private func locateOverflowChevron() -> CGFloat? {
         if AXIsProcessTrusted(),
            let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first {
             let element = AXUIElementCreateApplication(agent.processIdentifier)
@@ -304,14 +307,13 @@ final class MenuBarManagerService: ObservableObject {
                     guard let frame = Self.axFrame(item),
                           let screen = NSScreen.screens.first(where: { frame.midX >= $0.frame.minX && frame.midX < $0.frame.maxX })
                     else { continue }
-                    return (screen.frame.maxX - frame.midX, true)
+                    return screen.frame.maxX - frame.midX
                 }
             }
         }
         guard let shownMaxX, let dividerScreen = divider?.button?.window?.screen else { return nil }
-        return (MenuBarManagerSupport.estimatedChevronCenterFromRight(shownMaxX: shownMaxX,
-                                                                      dividerScreen: dividerScreen.frame),
-                false)
+        return MenuBarManagerSupport.estimatedChevronCenterFromRight(shownMaxX: shownMaxX,
+                                                                     dividerScreen: dividerScreen.frame)
     }
 
     private static func axValue(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
@@ -355,6 +357,7 @@ final class MenuBarManagerService: ObservableObject {
         let chrome = max(0, window.frame.width - length)
         let corrected = MenuBarManagerSupport.hiddenLength(
             osMajor: osMajor, shownMaxX: shownMaxX, screenFrame: window.screen?.frame ?? .zero,
+            cameraMaxX: window.screen?.auxiliaryTopRightArea?.minX,
             chrome: chrome, observedFloor: floor)
         Self.log.info("divider clamped at \(floor, privacy: .public); length \(length, privacy: .public) -> \(corrected, privacy: .public)")
         setLength(divider, corrected)
@@ -455,7 +458,9 @@ final class MenuBarManagerService: ObservableObject {
         if toggle == nil {
             setImage(divider, symbol: "chevron.right.2", description: strings.hideTooltip,
                      offset: CGSize(width: MenuBarManagerSupport.overflowChevronShift,
-                                    height: MenuBarManagerSupport.overflowChevronDrop))
+                                    height: divider?.button?.window?.screen?.auxiliaryTopRightArea == nil
+                                        ? MenuBarManagerSupport.overflowChevronDrop
+                                        : MenuBarManagerSupport.overflowChevronDropBesideCamera))
             divider?.button?.toolTip = strings.hideTooltip
         } else {
             setImage(divider, symbol: "poweron", description: strings.dividerTooltip)
@@ -474,7 +479,7 @@ final class MenuBarManagerService: ObservableObject {
     }
 
     /// `offset` moves the glyph right and down from where the button would
-    /// center it.
+    /// center it; a negative height moves it up.
     private func setImage(_ item: NSStatusItem?, symbol: String, description: String, offset: CGSize = .zero) {
         guard let button = item?.button,
               let symbolImage = NSImage(systemSymbolName: symbol, accessibilityDescription: description)
@@ -486,10 +491,11 @@ final class MenuBarManagerService: ObservableObject {
         }
         // The button centers its image, so empty room on one side moves the
         // glyph toward the other by half that room.
-        let size = NSSize(width: symbolImage.size.width + offset.width * 2,
-                          height: symbolImage.size.height + offset.height * 2)
+        let size = NSSize(width: symbolImage.size.width + abs(offset.width) * 2,
+                          height: symbolImage.size.height + abs(offset.height) * 2)
         let image = NSImage(size: size, flipped: false) { _ in
-            symbolImage.draw(in: NSRect(origin: CGPoint(x: offset.width * 2, y: 0), size: symbolImage.size))
+            let origin = CGPoint(x: max(0, offset.width) * 2, y: max(0, -offset.height) * 2)
+            symbolImage.draw(in: NSRect(origin: origin, size: symbolImage.size))
             return true
         }
         image.isTemplate = true
@@ -511,19 +517,30 @@ private final class OverflowChevronTap {
     private var source: CFRunLoopSource?
     private let lock = NSLock()
     /// Written on the main thread, read by the callback, both under `lock`.
-    private var zones: [CGRect] = []
+    private var strips: [CGRect] = []
+    private var agentPID: pid_t = 0
     private var isActive = false
     /// The release that ends a claimed press is claimed too, so no app sees
     /// half a click. Under `lock`: switching the tap on clears it, since the
     /// reveal switches the tap off before that release arrives.
     private var claimedPress = false
 
-    /// Starts claiming clicks in `zones`. False when the tap cannot exist,
-    /// which is the case without Accessibility.
-    func activate(zones: [CGRect]) -> Bool {
+    /// The system-wide element answers which item is under a point. A short
+    /// timeout keeps a slow answer from holding the click.
+    private let systemWide: AXUIElement = {
+        let element = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(element, 0.05)
+        return element
+    }()
+
+    /// Starts claiming clicks on the « that MenuBarAgent draws, looked for
+    /// only in `strips`. False when the tap cannot exist, which is the case
+    /// without Accessibility.
+    func activate(strips: [CGRect], agentPID: pid_t) -> Bool {
         guard AXIsProcessTrusted(), let port = port ?? makePort() else { return false }
         lock.lock()
-        self.zones = zones
+        self.strips = strips
+        self.agentPID = agentPID
         isActive = true
         claimedPress = false
         lock.unlock()
@@ -533,7 +550,7 @@ private final class OverflowChevronTap {
 
     func deactivate() {
         lock.lock()
-        zones = []
+        strips = []
         isActive = false
         lock.unlock()
         if let port { CGEvent.tapEnable(tap: port, enable: false) }
@@ -576,23 +593,24 @@ private final class OverflowChevronTap {
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         lock.lock()
         let active = isActive
-        let hit = active && zones.contains(where: { $0.contains(event.location) })
-        let claimsRelease = claimedPress
-        switch type {
-        case .leftMouseDown where hit:
-            claimedPress = true
-        case .leftMouseUp:
-            claimedPress = false
-        default:
-            break
-        }
+        let onBar = active && strips.contains(where: { $0.contains(event.location) })
+        let pid = agentPID
+        let claimsRelease = type == .leftMouseUp && claimedPress
+        if type == .leftMouseUp { claimedPress = false }
         lock.unlock()
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             if active, let port { CGEvent.tapEnable(tap: port, enable: true) }
             return Unmanaged.passUnretained(event)
         case .leftMouseDown:
-            guard hit else { return Unmanaged.passUnretained(event) }
+            // Asked outside the lock: the main thread may be switching the
+            // tap off meanwhile.
+            guard onBar, isOverflowChevron(at: event.location, agentPID: pid) else {
+                return Unmanaged.passUnretained(event)
+            }
+            lock.lock()
+            claimedPress = true
+            lock.unlock()
             onClick?()
             return nil
         case .leftMouseUp:
@@ -600,5 +618,21 @@ private final class OverflowChevronTap {
         default:
             return Unmanaged.passUnretained(event)
         }
+    }
+
+    /// The « is the one button MenuBarAgent puts in the bar; its other items
+    /// are groups. Measured on macOS 27 at about half a millisecond a click.
+    private func isOverflowChevron(at point: CGPoint, agentPID: pid_t) -> Bool {
+        var item: AXUIElement?
+        var pid: pid_t = 0
+        guard AXUIElementCopyElementAtPosition(systemWide, Float(point.x), Float(point.y), &item) == .success,
+              let item, AXUIElementGetPid(item, &pid) == .success,
+              // Only MenuBarAgent is asked anything more; other apps' items
+              // are left alone.
+              pid == agentPID
+        else { return false }
+        var role: CFTypeRef?
+        AXUIElementCopyAttributeValue(item, kAXRoleAttribute as CFString, &role)
+        return (role as? String) == kAXButtonRole
     }
 }

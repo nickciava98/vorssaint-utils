@@ -51,9 +51,13 @@ enum MenuBarManagerSupport {
     }
 
     /// The x a divider may not cross on macOS 27, estimated from the display
-    /// until a clamped frame reports the real one.
-    static func estimatedOverflowFloor(screenFrame: CGRect) -> CGFloat {
-        screenFrame.minX + (screenFrame.width * overflowFloorFraction).rounded() + overflowFloorInset
+    /// until a clamped frame reports the real one. On a notched display the
+    /// items only fit right of the camera, so the floor is the camera's
+    /// right edge: measured on a 1512 point display, items hide into the «
+    /// from a divider of any length that stops there, while the fifth of
+    /// the display, at 326, got the divider dropped.
+    static func estimatedOverflowFloor(screenFrame: CGRect, cameraMaxX: CGFloat?) -> CGFloat {
+        cameraMaxX ?? screenFrame.minX + (screenFrame.width * overflowFloorFraction).rounded() + overflowFloorInset
     }
 
     /// The divider length that hides the items on its left.
@@ -62,14 +66,16 @@ enum MenuBarManagerSupport {
     ///   - shownMaxX: the divider's right edge while it is shown. The divider
     ///     grows leftwards, so this edge does not move while it is hidden.
     ///   - chrome: what the item window adds around its length.
+    ///   - cameraMaxX: the right edge of the display's camera housing, if any.
     ///   - observedFloor: the floor a clamped frame reported, if any.
     static func hiddenLength(osMajor: Int,
                              shownMaxX: CGFloat,
                              screenFrame: CGRect,
+                             cameraMaxX: CGFloat?,
                              chrome: CGFloat,
                              observedFloor: CGFloat?) -> CGFloat {
         guard usesOverflowMenu(osMajor: osMajor) else { return offscreenHiddenLength }
-        let estimate = estimatedOverflowFloor(screenFrame: screenFrame)
+        let estimate = estimatedOverflowFloor(screenFrame: screenFrame, cameraMaxX: cameraMaxX)
         let floor = observedFloor.map { max($0, estimate) } ?? estimate
         let length = shownMaxX - floor - overflowFloorMargin - max(0, chrome)
         return max(materializationLength, length.rounded(.down))
@@ -98,9 +104,14 @@ enum MenuBarManagerSupport {
     /// The » divider's width on macOS 27, close to the system « it replaces.
     static let shownDividerLength: CGFloat = 24
     /// Room added above and below our » so it lines up with the system « it
-    /// replaces. Measured on macOS 27: glyph rows 8-18 without it, 10-20
-    /// with it, the same rows as the system chevron.
+    /// replaces. Measured on macOS 27 with a 1920 point display without a
+    /// camera: glyph rows 8-18 without it, 10-20 with it, the same rows as
+    /// the system chevron.
     static let overflowChevronDrop: CGFloat = 1
+    /// The taller bar beside a camera centers the system « half a point
+    /// higher. Measured on a notched 1512 point display: glyph rows 22-43
+    /// at 2x for both chevrons with it, 23-44 for ours without it.
+    static let overflowChevronDropBesideCamera: CGFloat = -0.5
     /// Room added on the left for the same reason: without it our » sat
     /// three points left of the system «.
     static let overflowChevronShift: CGFloat = 3
@@ -125,19 +136,17 @@ enum MenuBarManagerSupport {
         dividerScreen.maxX - shownMaxX
     }
 
-    /// Where the system « sits on every display, in the top-left coordinates
-    /// that event taps report, so a tap can claim the click before the
-    /// overflow menu opens. `screens` are AppKit frames; `mainMaxY` is the
-    /// top of the main display.
-    static func overflowChevronZones(screens: [CGRect],
-                                     mainMaxY: CGFloat,
-                                     chevronCenterFromRight: CGFloat,
-                                     barHeight: CGFloat) -> [CGRect] {
+    /// The menu bar of every display, in the top-left coordinates that event
+    /// taps report. Only a click inside one is checked for the «, which
+    /// keeps the check off every other click. `screens` are AppKit frames
+    /// with the height of their bar, which is taller beside a camera;
+    /// `mainMaxY` is the top of the main display.
+    static func menuBarStrips(screens: [(frame: CGRect, barHeight: CGFloat)], mainMaxY: CGFloat) -> [CGRect] {
         screens.map { screen in
-            CGRect(x: screen.maxX - chevronCenterFromRight - overflowChevronReach,
-                   y: mainMaxY - screen.maxY,
-                   width: overflowChevronReach * 2,
-                   height: barHeight)
+            CGRect(x: screen.frame.minX,
+                   y: mainMaxY - screen.frame.maxY,
+                   width: screen.frame.width,
+                   height: screen.barHeight)
         }
     }
 
