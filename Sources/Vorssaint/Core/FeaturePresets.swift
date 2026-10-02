@@ -114,6 +114,12 @@ extension AppFeature {
             return RadialMenuSupport.opensFromMouseOrTrackpad(
                 UserDefaults.standard.data(forKey: DefaultsKey.radialMenuProfiles))
                 ? .mouse : .idle
+        case .menuBarManager:
+            // On macOS 27 a click tap, or a click monitor without
+            // Accessibility, runs while icons are hidden, which is the
+            // resting state.
+            return MenuBarManagerSupport.usesOverflowMenu(
+                osMajor: ProcessInfo.processInfo.operatingSystemVersion.majorVersion) ? .mouse : .idle
         case .notchNotifications, .notchGestures, .notchTimer, .notchQueue, .notchDownloads: return .idle
         // It reads only while something is being watched, and stops on its own.
         case .notchWatch: return .idle
@@ -142,7 +148,7 @@ extension AppFeature {
              .bluetoothSleep, .keepAwake, .quickLauncher, .quickToggles, .colorPicker,
              .screenOCR, .cleaningMode, .mediaTools, .cleaner, .uninstaller, .homebrew, .screenshot,
              .cameraPreview, .scratchpad, .commandBar, .screenRecorder, .wallpaper, .fanControl,
-             .diskImageInstaller, .killProcess, .portManager, .menuBarManager:
+             .diskImageInstaller, .killProcess, .portManager:
             return .idle
         case .appUpdates:
             // The list is on demand; only a background schedule keeps a timer.
